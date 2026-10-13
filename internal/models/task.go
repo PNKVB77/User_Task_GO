@@ -1,12 +1,8 @@
 package models
 
 import (
-	"errors"
 	"time"
 )
-
-var ErrorNotFound = errors.New("task not found")
-var ErrorNoRows = errors.New("no such rows")
 
 type Task struct {
 	ID        int64      `json:"id"`
