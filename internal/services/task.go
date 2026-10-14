@@ -33,7 +33,7 @@ type TaskService struct {
 	validate *validator.Validate
 }
 
-func NewTaskRepository(repo TaskRepository) *TaskService {
+func New(repo TaskRepository) *TaskService {
 	return &TaskService{repo: repo, validate: validator.New()}
 }
 

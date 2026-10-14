@@ -2,24 +2,76 @@ package main
 
 import (
 	"context"
-	"log"
+	"errors"
+	"log/slog"
+	"net/http"
 	"os"
+	"time"
 
+	"github.com/PNKVB77/User_Task_GO/config"
+	"github.com/PNKVB77/User_Task_GO/internal/handlers"
+	"github.com/PNKVB77/User_Task_GO/internal/repo"
+	"github.com/PNKVB77/User_Task_GO/internal/services"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	connectString := os.Getenv("DATABASE_URL")
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
-	pool, err := pgxpool.New(context.Background(), connectString)
+	if err := run(); err != nil {
+		slog.Error("fatal", "err", err)
+	}
+
+}
+
+func run() error {
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		return err
+	}
+
+	ctx := context.Background()
+
+	pool, err := pgxpool.New(ctx, cfg.Postgres.DSN())
+	if err != nil {
+		return err
 	}
 	defer pool.Close()
 
-	if err := pool.Ping(context.Background()); err != nil {
-		log.Fatal(err)
+	// Ping при старте: лучше падать на старте чем принимать трафик чем и 500
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := pool.Ping(pingCtx); err != nil {
+		return err
 	}
+	slog.Info("connected to database")
 
-	log.Println("connection successed")
+	taskRepo := repo.NewTaskRepo(pool)
+	srvs := services.New(taskRepo)
+	handler := handlers.NewTaskHandler(srvs)
+	router := handlers.NewRouter(handler, pool)
+
+	// ListenAndServe удобен но не исмеет таймаута
+	// Клиент открывает  соедиение,  посылает медленно запрос и не досылает - горутина вестьб вечно. Сотня таких случаеев кладет сервер
+	// при нулевой РЕАЛЬНОЙ нагрузке (атака Slowloris)
+	srv := &http.Server{
+		Addr:         cfg.HTTP.Address,
+		Handler:      router,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,  // скольк ждет запрос от клиента
+		WriteTimeout: cfg.HTTP.WriteTimeout, // скольк времени на ответ
+		IdleTimeout:  cfg.HTTP.IdleTimeout,  // сколько держим молчаний "keep-alive"
+	}
+	// Сервер - в горутину, мэйн блокируется в ожидании сигнала
+	serverErr := make(chan error, 1)
+	go func() {
+		slog.Info("server started", "addr", cfg.HTTP.Address)
+		// ErrServerClose - Shutdown, а не ошибка
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+
+	// Graceful Shutdown
+
+	return nil
 }
