@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/PNKVB77/User_Task_GO/internal/models"
-	"github.com/go-playground/validator"
+	"github.com/go-playground/validator/v10"
 )
 
 // TaskRepository находится здесь, в пакете потрибителя, а не в пакете repo
@@ -58,13 +58,12 @@ func humanize(fe validator.FieldError) string {
 	case "required":
 		return "required " + field
 	case "min":
-		fmt.Printf("%s must be at least %s", field, fe.Param())
+		return fmt.Sprintf("%s must be at least %s", field, fe.Param())
 	case "max":
-		fmt.Printf("%s must be at most %s", field, fe.Param())
+		return fmt.Sprintf("%s must be at most %s", field, fe.Param())
 	default:
 		return field + " invalid"
 	}
-	return field
 }
 
 func (s *TaskService) Create(ctx context.Context, in models.CreateTaskRequest) (models.Task, error) {
@@ -72,7 +71,7 @@ func (s *TaskService) Create(ctx context.Context, in models.CreateTaskRequest) (
 	if err := s.Check(in); err != nil {
 		return models.Task{}, err
 	}
-	return models.Task{}, nil
+	return s.repo.Create(ctx, in)
 }
 
 func (s *TaskService) GetById(ctx context.Context, id int64) (models.Task, error) {

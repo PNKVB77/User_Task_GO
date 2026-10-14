@@ -67,7 +67,7 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 	if raw := query.Get("limit"); raw != "" {
 		limit, err := strconv.Atoi(raw)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "done must be a number")
+			writeError(w, http.StatusBadRequest, "limit must be a number")
 			return
 		}
 		filter.Limit = limit
@@ -126,4 +126,6 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		WriteServiceError(w, err)
 		return
 	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

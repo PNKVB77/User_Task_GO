@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/PNKVB77/User_Task_GO/config"
@@ -20,6 +22,7 @@ func main() {
 
 	if err := run(); err != nil {
 		slog.Error("fatal", "err", err)
+		os.Exit(1)
 	}
 
 }
@@ -71,7 +74,28 @@ func run() error {
 		}
 	}()
 
+	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case err := <-serverErr:
+		return err
+	case <-sigCtx.Done():
+		slog.Info("shutdown signal received")
+	}
+
 	// Graceful Shutdown
+	// Shutdown делает две вещи: перестает принимать новые соединения и ждет, пока деработают другие.
+	// Дэдлайн обязателен, так как один запрос может повиснуть в проде и не дать ему умереть.
+
+	shutdownCtx, cancelShutDown := context.WithTimeout(ctx, cfg.HTTP.ShutdownTimeout)
+	defer cancelShutDown()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+
+	slog.Info("server stopped gracefully")
 
 	return nil
 }

@@ -13,12 +13,12 @@ type Task struct {
 }
 
 type CreateTaskRequest struct {
-	Title   string     `json:"title" validate:"required, min=3,max=100"` // теги validate читают в c/c min/max - считает в рунах, не в байтах
+	Title   string     `json:"title" validate:"required,min=3,max=100"` // теги validate читают в c/c min/max - считает в рунах, не в байтах
 	DueDate *time.Time `json:"due_date"`
 }
 
 type UpdateTaskRequest struct {
-	Title   *string    `json:"title" validate:"omitempty, min=3,max=100"`
+	Title   *string    `json:"title" validate:"omitempty,min=3,max=100"`
 	Done    *bool      `json:"done"`
 	DueDate *time.Time `json:"due_date"`
 }

@@ -66,7 +66,7 @@ func Load() (Config, error) {
 }
 
 func env(key string, def string) string {
-	if v := os.Getenv(key); v == "" {
+	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return def
@@ -78,7 +78,7 @@ func envInt(key string, def int) (int, error) {
 		return def, nil
 	}
 	num, err := strconv.Atoi(raw)
-	if err == nil {
+	if err != nil {
 		return 0, fmt.Errorf("%s must be a number, got %q", key, raw)
 	}
 	return num, nil

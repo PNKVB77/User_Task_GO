@@ -23,14 +23,14 @@ const TaskColumns = `id, title, done, due_date, created_at`
 const query = `
 	INSERT INTO tasks (title, due_date)
 	VALUES ($1, $2)
-	RETURNING` + TaskColumns
+	RETURNING ` + TaskColumns
 
 // $1,$2 - параметры. Драйвер отправляет запрос и значение отдельно, поэтому постгрес не может распознать значение как SQL
 // RETERNING нужен чтобы забрать сгенированный id и created_at без SELECT
 
 func (r *TaskRepo) Create(ctx context.Context, in models.CreateTaskRequest) (models.Task, error) {
 	var t models.Task
-	err := r.pool.QueryRow(ctx, query, in.Title, in.DueDate).Scan(&t.ID, t.Title, t.Done, t.DueDate, t.CreatedAt)
+	err := r.pool.QueryRow(ctx, query, in.Title, in.DueDate).Scan(&t.ID, &t.Title, &t.Done, &t.DueDate, &t.CreatedAt)
 	if err != nil {
 		return models.Task{}, fmt.Errorf("create task: %w", err)
 	}
@@ -40,7 +40,7 @@ func (r *TaskRepo) Create(ctx context.Context, in models.CreateTaskRequest) (mod
 func (r *TaskRepo) GetById(ctx context.Context, id int64) (models.Task, error) {
 	const query = `SELECT ` + TaskColumns + ` FROM tasks WHERE id = $1`
 	var t models.Task
-	err := r.pool.QueryRow(ctx, query, id).Scan(&t.ID, t.Title, t.Done, t.DueDate, t.CreatedAt)
+	err := r.pool.QueryRow(ctx, query, id).Scan(&t.ID, &t.Title, &t.Done, &t.DueDate, &t.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return models.Task{}, models.ErrorNotFound
 	}
@@ -54,7 +54,7 @@ func (r *TaskRepo) GetById(ctx context.Context, id int64) (models.Task, error) {
 
 func (r *TaskRepo) List(ctx context.Context, f models.ListFilter) ([]models.Task, error) {
 	const query = `SELECT ` + TaskColumns + ` FROM tasks WHERE ($1::bool IS NULL OR done = $1)
-	ORDER_BY created_at DESC, id DESC LIMIT $2`
+	ORDER BY created_at DESC, id DESC LIMIT $2`
 	rows, err := r.pool.Query(ctx, query, f.Done, f.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
@@ -64,7 +64,7 @@ func (r *TaskRepo) List(ctx context.Context, f models.ListFilter) ([]models.Task
 	tasks := make([]models.Task, 0)
 	for rows.Next() {
 		var t models.Task
-		if err := rows.Scan(&t.ID, t.Title, t.Done, t.DueDate, t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Done, &t.DueDate, &t.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan tasks: %w", err)
 		}
 		tasks = append(tasks, t)
@@ -78,15 +78,15 @@ func (r *TaskRepo) List(ctx context.Context, f models.ListFilter) ([]models.Task
 
 func (r *TaskRepo) Update(ctx context.Context, id int64, in models.UpdateTaskRequest) (models.Task, error) {
 	const query = `UPDATE tasks 
-	SET title = COALESCE($2, title)
-		done = COALESCE ($3, done)
+	SET title = COALESCE($2, title),
+		done = COALESCE ($3, done),
 		due_date = COALESCE ($4, due_date)
 	WHERE id = $1
-	RETERNING` + TaskColumns
+	RETURNING ` + TaskColumns
 	var t models.Task
-	err := r.pool.QueryRow(ctx, query, id, in.Title, in.Done, in.DueDate).Scan(&t.ID, t.Title, t.Done, t.DueDate, t.CreatedAt)
+	err := r.pool.QueryRow(ctx, query, id, in.Title, in.Done, in.DueDate).Scan(&t.ID, &t.Title, &t.Done, &t.DueDate, &t.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return models.Task{}, models.ErrorNoRows
+		return models.Task{}, models.ErrorNotFound
 	}
 
 	if err != nil {

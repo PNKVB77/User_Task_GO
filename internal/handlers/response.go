@@ -18,7 +18,7 @@ type ErrorResponse struct {
 // WriteHeader - до первого Write, потому что первый сам поставит 200, если статус не выставлен. Баг: Человек пишет тело
 // WriteHeader(201) получает 200, и warning в логах
 func writeJson(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json, charset=utf-8")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	if v == nil {
 		return
